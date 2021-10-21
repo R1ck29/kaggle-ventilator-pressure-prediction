@@ -221,37 +221,42 @@ def class2dict(f):
     return dict((name, getattr(f, name)) for name in dir(f) if not name.startswith('__'))
 
 
-def train_fn(fold, train_loader, model, criterion, optimizer, epoch, scheduler, device):
-    scaler = GradScaler()
+def train_fn(fold, train_loader, model, criterion, optimizer, scaler, epoch, scheduler, device):
     model.train()
     losses = AverageMeter()
     start = end = time()
+    iters = len(train_loader)
     for step, (inputs, y) in enumerate(train_loader):
         inputs, y = inputs.to(device), y.to(device)
         batch_size = inputs.size(0)
-        with autocast():
+        with autocast(enabled=cfg.apex):
             pred = model(inputs)
             loss = criterion(pred, y, inputs[:,:,0].reshape(-1,80,1))
         losses.update(loss.item(), batch_size)
         if cfg.gradient_accumulation_steps > 1:
             loss = loss / cfg.gradient_accumulation_steps
-        if cfg.apex:
-            scaler.scale(loss).backward()
-        else:
-            loss.backward()
+        # if cfg.apex:
+        scaler.scale(loss).backward()
+        # else:
+        #     loss.backward()
         grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
         if (step + 1) % cfg.gradient_accumulation_steps == 0:
-            if cfg.apex:
-                scaler.step(optimizer)
-            else:
-                optimizer.step()
+            # if cfg.apex:
+            scaler.step(optimizer)
+            # else:
+            #     optimizer.step()
             optimizer.zero_grad()
             lr = 0
+
             if cfg.batch_scheduler:
-                scheduler.step()
                 lr = scheduler.get_lr()[0]
-        if cfg.apex:
-            scaler.update()
+
+            if isinstance(scheduler, CosineAnnealingWarmRestarts):
+                scheduler.step(epoch + step / iters)
+                # scheduler.step()       
+                
+        # if cfg.apex:
+        scaler.update()
         end = time()
 
         wandb.log({f"[fold{fold}] loss": losses.val,
@@ -370,6 +375,8 @@ def train_loop(LOGGER, X, train, y, fold, trn_idx, val_idx, OUTPUT_DIR, device):
     # ====================================================
     criterion = L1Loss_masked()
 
+    scaler = GradScaler(enabled=cfg.apex)
+
     best_score = np.inf
     patience = 0
     avg_losses = []
@@ -383,7 +390,7 @@ def train_loop(LOGGER, X, train, y, fold, trn_idx, val_idx, OUTPUT_DIR, device):
         start_time = time()
 
         # train
-        avg_loss = train_fn(fold, train_loader, model, criterion, optimizer, epoch, scheduler, device)
+        avg_loss = train_fn(fold, train_loader, model, criterion, optimizer, scaler, epoch, scheduler, device)
         #avg_loss = train_fn(fold, train_loader, model, criterion, optimizer, epoch, None, device)
         avg_losses.append(avg_loss)
         
@@ -395,8 +402,8 @@ def train_loop(LOGGER, X, train, y, fold, trn_idx, val_idx, OUTPUT_DIR, device):
             scheduler.step(avg_val_loss)
         elif isinstance(scheduler, CosineAnnealingLR):
             scheduler.step()
-        elif isinstance(scheduler, CosineAnnealingWarmRestarts):
-            scheduler.step()
+        # elif isinstance(scheduler, CosineAnnealingWarmRestarts):
+        #     scheduler.step()
 
         # scoring
         score = avg_val_loss #get_score(y_true[non_expiratory_phase_val_idx], preds[non_expiratory_phase_val_idx])
@@ -448,7 +455,7 @@ def main():
     Prepare: 1.train 2.test
     """
 
-    seed_everything()
+    seed_everything(cfg.seed)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -542,7 +549,7 @@ def main():
     if cfg.train:
         # train 
         oof_df = pd.DataFrame()
-        kfold = KFold(n_splits=cfg.n_fold, random_state=42, shuffle=True)
+        kfold = KFold(n_splits=cfg.n_fold, random_state=cfg.seed, shuffle=True)
         for fold, (trn_idx, val_idx) in enumerate(kfold.split(X=X, y=y)):
             if fold in cfg.trn_fold:
                 _oof_df = train_loop(LOGGER, X, train, y, fold, trn_idx, val_idx, OUTPUT_DIR, device)

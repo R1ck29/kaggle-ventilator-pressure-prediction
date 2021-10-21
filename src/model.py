@@ -89,13 +89,25 @@ class CustomModel_v2(nn.Module):
         self.lstm1 = nn.LSTM(self.hidden_size, self.hidden_size//2, dropout=0.1, batch_first=True, bidirectional=True)
         self.lstm2 = nn.LSTM(self.hidden_size//2 * 2, self.hidden_size//4, dropout=0.1, batch_first=True, bidirectional=True)
         self.lstm3 = nn.LSTM(self.hidden_size//4 * 2, self.hidden_size//8, dropout=0.1, batch_first=True, bidirectional=True)
-        self.head = nn.Sequential(
+        # 512 128
+        if self.hidden_size == 1024:
+            self.lstm4 = nn.LSTM(self.hidden_size//8 * 2, self.hidden_size//16, dropout=0.1, batch_first=True, bidirectional=True)
+            # in=256 out=64
+            self.head = nn.Sequential(
             # nn.Linear(self.hidden_size//8 * 2, self.hidden_size//8 * 2),
-            nn.LayerNorm(self.hidden_size//8 * 2),
+            nn.LayerNorm(self.hidden_size//16 * 2),
             nn.GELU(),
             #nn.Dropout(0.),
-            nn.Linear(self.hidden_size//8 * 2, 1),
-        )
+            nn.Linear(self.hidden_size//16 * 2, 1),
+            )
+        else:
+            self.head = nn.Sequential(
+                # nn.Linear(self.hidden_size//8 * 2, self.hidden_size//8 * 2),
+                nn.LayerNorm(self.hidden_size//8 * 2),
+                nn.GELU(),
+                #nn.Dropout(0.),
+                nn.Linear(self.hidden_size//8 * 2, 1),
+            )
         for n, m in self.named_modules():
             if isinstance(m, nn.LSTM):
                 print(f'init {m}')
@@ -118,5 +130,7 @@ class CustomModel_v2(nn.Module):
         seq_emb, _ = self.lstm1(seq_emb)
         seq_emb, _ = self.lstm2(seq_emb)
         seq_emb, _ = self.lstm3(seq_emb)
+        if self.hidden_size == 1024:
+            seq_emb, _ = self.lstm4(seq_emb)
         output = self.head(seq_emb)#.view(bs, -1)
         return output

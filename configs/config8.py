@@ -3,6 +3,7 @@ import os
 abs_path : os.path.dirname(__file__)
 
 cfg = {
+    'seed':42,
     'model_path':'../models/',
     'competition':'ventilator',
     'wandb_kernel':'r1ck',

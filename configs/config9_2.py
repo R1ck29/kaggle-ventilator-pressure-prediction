@@ -7,11 +7,11 @@ cfg = {
     'model_path':'../models/',
     'competition':'ventilator',
     'wandb_kernel':'r1ck',
-    'feature_version':1,
+    'feature_version':2,
     'apex':False,
     'print_freq':1000,
     'num_workers':4,
-    'model_name':'rnn_v2',
+    'model_name':'rnn_v3',
     'scheduler':'CosineAnnealingWarmRestarts', # ['linear', 'cosine', 'ReduceLROnPlateau', 'CosineAnnealingLR', 'CosineAnnealingWarmRestarts']
     'batch_scheduler':False,
     #num_warmup_steps:100 # ['linear', 'cosine']
@@ -31,7 +31,7 @@ cfg = {
     'batch_size':256,
     'n_fold':5,
     'trn_fold':[0, 1, 2, 3, 4],
-    'early_stopping':True,
+    'early_stopping':False,
     'es_patience' : 25,
     'cate_seq_cols':[],
     'cont_seq_cols':['R', 'C', 'time_step', 'u_in', 'u_out'], #['time_step', 'u_in', 'u_out'] + ['breath_time', 'u_in_time'],
