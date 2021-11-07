@@ -1,6 +1,3 @@
-# To add a new cell, type '# %%'
-# To add a new markdown cell, type '# %% [markdown]'
-# %% [markdown]
 # # Can pytorch scores reach keras?
 # I like [ynakama](https://www.kaggle.com/yasufuminakama)'s notebook and often use it as a baseline.  
 # I used his [baseline](https://www.kaggle.com/yasufuminakama/ventilator-pressure-lstm-starter) again.  
@@ -97,7 +94,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import wandb
-from utils import get_score, init_logger, seed_everything, AverageMeter, asMinutes, timeSince
+from utils import get_score, init_logger, seed_everything, AverageMeter, asMinutes, timeSince, reduce_memory_usage
 from conf import *
 from model import CustomModel_v2
 from loss import L1Loss_masked
@@ -496,8 +493,10 @@ def main():
     if os.path.exists(train_fe_path) and os.path.exists(test_fe_path) and os.path.exists(cont_seq_cols_path):
         print(f'Loading {train_fe_path}')
         train = pd.read_csv(train_fe_path)
+        # train = reduce_memory_usage(train)
         print(f'Loading {test_fe_path}')
         test = pd.read_csv(test_fe_path)
+        # test = reduce_memory_usage(test)
 
         print(f'Loading {cont_seq_cols_path}')
         with open(cont_seq_cols_path, 'rb') as fp:
@@ -506,10 +505,12 @@ def main():
     else:
         print(f'Loading {DATA_DIR + "train.csv"}')
         train = pd.read_csv(DATA_DIR + 'train.csv')
+        # train = reduce_memory_usage(train)
         if cfg.debug:
             train = train[:80*5000]
 
         test = pd.read_csv(DATA_DIR + 'test.csv')
+        # test = reduce_memory_usage(test)
         print(f'Loading {DATA_DIR + "test.csv"}')
         # sub = pd.read_csv(DATA_DIR + 'sample_submission.csv')
 

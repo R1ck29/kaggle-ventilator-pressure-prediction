@@ -103,11 +103,12 @@ def main():
     # CV split
     # ====================================================
     print('Applying Group Fold')
-    Fold = GroupKFold(n_splits=5)
+    Fold = GroupKFold(n_splits=cfg.n_fold)
     groups = train['breath_id'].values
     for n, (train_index, val_index) in enumerate(Fold.split(train, train['pressure'], groups)):
         train.loc[val_index, 'fold'] = int(n)
     train['fold'] = train['fold'].astype(int)
+    print('Total train size', len(train))
     print(train.groupby('fold').size())
 
     out_path = f'../input/features/'
